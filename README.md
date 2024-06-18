@@ -1,1 +1,6 @@
-BCA protein assay quantification template
+# BCA protein assay quantification template
+
+## Features
+
+* Read in files, write output excel files
+* Non-linear regression
