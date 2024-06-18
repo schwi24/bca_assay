@@ -1,0 +1,180 @@
+---
+title: "BCA_20240617"
+author: "Christoph Schweingruber"
+output: html_document
+date: "2024-06-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(openxlsx)
+library(ggprism)
+library(renv)
+```
+
+## BCA assay
+
+```{r load_data}
+source("R/read_clariostar.R")
+data <- read_clariostar(file = "data/BCA_20240617_1.CSV")
+meta <- read_excel(path = "meta/Samples_BCA_20240617.xlsx") %>%
+  select(.data = ., -Column, - Row)
+
+data <- left_join(
+  x = meta,
+  y = data,
+  by = c("Well" = "Well")
+) %>%
+  janitor::clean_names(.)
+
+#data
+```
+
+The manual for the Pierce BCA Protein Assay suggest that a linear regression 
+might be worse than non-linear regression for the calibration curve. It suggests
+to use a 'four-parameter quadratic' equation, which is commonly called a
+logistic regression. Let's use it here:
+
+```{r standard_curve}
+source("R/calibrate_assay.R")
+
+standards <- filter(data, task == "Standard")
+calibration_curve <- fit_logistic_calibration_curve(standards, level = 0.95)
+
+plot1 <- ggplot(data = standards, aes(x = quantity, y = a560)) +
+  geom_point() +
+  geom_ribbon(
+    data = calibration_curve$fit,
+    mapping = aes(x = quantity, ymin = lwr, ymax = upr),
+    fill = "dodgerblue",
+    alpha = 0.2,
+    inherit.aes = FALSE
+  ) +
+  geom_line(
+    data = calibration_curve$fit,
+    mapping = aes(x = quantity, y = fit),
+    linetype = "dashed",
+    inherit.aes = FALSE
+  ) +
+  annotate(
+    geom = "text",
+    label = 'paste(psi, {R^2}["adj"], " = ")',
+    x = 0,
+    y = 2,
+    parse = TRUE,
+    hjust = "left"
+  ) +
+  geom_text(
+    data = calibration_curve$r_squared,
+    mapping = aes(x = 0.28, y = 2, label = round(adj_R_squared, 4))
+  ) +
+  labs(
+    x = "Albumin, mg/mL",
+    y = "Absorbance A560",
+    title = "Calibration curve",
+    subtitle = "Fit + CI(95%)"
+  ) +
+  theme_prism()
+
+plot1
+```
+
+As we can see, the fit is okay.
+
+```{r quantify_samples}
+source("R/calibrate_assay.R")
+data <- quantify_unknowns(data, calibration_curve)
+
+unknowns <- data %>%
+  filter(., task %in% c("Unknown", "Negative"))
+
+plot2 <- ggplot(data = standards, aes(x = a560, y = quantity)) +
+  geom_ribbon(
+    data = calibration_curve$fit,
+    mapping = aes(y = quantity, xmin = lwr, xmax = upr),
+    fill = "dodgerblue",
+    alpha = 0.2,
+    inherit.aes = FALSE
+  ) +
+  geom_line(
+    data = calibration_curve$fit,
+    mapping = aes(x = fit, y = quantity),
+    linetype = "dashed",
+    inherit.aes = FALSE
+  ) +
+  geom_point() +
+  geom_point(
+    data = unknowns,
+    mapping = aes(color = clone)
+  ) +
+  geom_rug(
+    data = unknowns,
+    mapping = aes(color = clone)
+  ) +
+  scale_color_manual(values = hcl.colors(6, palette = "Sunset")) +
+  annotate(
+    geom = "text",
+    label = 'paste(psi, {R^2}["adj"], " = ")',
+    x = -0.2,
+    y = 2,
+    parse = TRUE,
+    hjust = "left"
+  ) +
+  geom_text(
+    data = calibration_curve$r_squared,
+    mapping = aes(x = 0.3, y = 2, label = round(adj_R_squared, 4))
+  ) +
+  labs(
+    x = "Absorbance A560",
+    y = "Protein, mg/mL",
+    title = "BCA protein assay",
+    subtitle = "calibration curve + CI(95%)"
+  ) +
+  theme_prism()
+
+plot2
+```
+
+Our samples are in the lower range but reasonable.
+
+
+```{r write_data}
+wb <- createWorkbook()
+
+addWorksheet(wb, sheetName = "Data")
+freezePane(wb, sheet = "Data", firstRow = TRUE, firstCol = TRUE)
+writeDataTable(
+  wb,
+  sheet = "Data",
+  x = data,
+  colNames = TRUE,
+  rowNames = FALSE,
+  tableStyle = "None"
+)
+addWorksheet(wb, sheetName = "Summary")
+freezePane(wb, sheet = "Summary", firstRow = TRUE, firstCol = TRUE)
+writeDataTable(
+  wb,
+  sheet = "Summary",
+  x = select(
+    .data = arrange(.data = unknowns, clone, shield),
+    well, name, task, clone, shield, a560, quantity, unit
+  ),
+  colNames = TRUE,
+  rowNames = FALSE,
+  tableStyle = "None"
+)
+
+## Save workbook
+saveWorkbook(wb, "docs/BCA_20240617.xlsx", overwrite = TRUE)
+```
+
+
+## References
+
+* https://bookdown.org/hneth/ds4psy/D-3-apx-colors-basics.html
+* https://www.myassays.com/four-parameter-logistic-regression.html
+
+
