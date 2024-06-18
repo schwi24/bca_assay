@@ -13,7 +13,7 @@ read_clariostar <- function(file, readings = 1L) {
     data = _,
     cols = !Row,
     names_to = "Column",
-    values_to = "A560"
+    values_to = "A562"
   ) |>
   drop_na(data = _) |>
   mutate(.data = _, Well = paste0(Row, Column), .before = 1L) |>

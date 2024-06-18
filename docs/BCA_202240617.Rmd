@@ -43,7 +43,7 @@ source("R/calibrate_assay.R")
 standards <- filter(data, task == "Standard")
 calibration_curve <- fit_logistic_calibration_curve(standards, level = 0.95)
 
-plot1 <- ggplot(data = standards, aes(x = quantity, y = a560)) +
+plot1 <- ggplot(data = standards, aes(x = quantity, y = a562)) +
   geom_point() +
   geom_ribbon(
     data = calibration_curve$fit,
@@ -72,7 +72,7 @@ plot1 <- ggplot(data = standards, aes(x = quantity, y = a560)) +
   ) +
   labs(
     x = "Albumin, mg/mL",
-    y = "Absorbance A560",
+    y = "Absorbance A562",
     title = "Calibration curve",
     subtitle = "Fit + CI(95%)"
   ) +
@@ -90,7 +90,7 @@ data <- quantify_unknowns(data, calibration_curve)
 unknowns <- data %>%
   filter(., task %in% c("Unknown", "Negative"))
 
-plot2 <- ggplot(data = standards, aes(x = a560, y = quantity)) +
+plot2 <- ggplot(data = standards, aes(x = a562, y = quantity)) +
   geom_ribbon(
     data = calibration_curve$fit,
     mapping = aes(y = quantity, xmin = lwr, xmax = upr),
@@ -127,7 +127,7 @@ plot2 <- ggplot(data = standards, aes(x = a560, y = quantity)) +
     mapping = aes(x = 0.3, y = 2, label = round(adj_R_squared, 4))
   ) +
   labs(
-    x = "Absorbance A560",
+    x = "Absorbance A562",
     y = "Protein, mg/mL",
     title = "BCA protein assay",
     subtitle = "calibration curve + CI(95%)"
@@ -160,7 +160,7 @@ writeDataTable(
   sheet = "Summary",
   x = select(
     .data = arrange(.data = unknowns, clone, shield),
-    well, name, task, clone, shield, a560, quantity, unit
+    well, name, task, clone, shield, a562, quantity, unit
   ),
   colNames = TRUE,
   rowNames = FALSE,

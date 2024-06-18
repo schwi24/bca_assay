@@ -5,7 +5,7 @@
 #' parameters, and Efron's coefficients of determination (pseudo R-squared)
 #' including the adjusted version for multiple parameters.
 #' @param standards A data frame with the standard samples. It must contain 
-#' columns named `A560`, and `Quantity` with numerical values.
+#' columns named `A562`, and `Quantity` with numerical values.
 #' @param low_cutoff A numerical value or vector with the lower cut-off boundary
 #' for the `Quantity` that is used for the calibration. The default is `0`.
 #' @param high_cutoff A numerical value or vector with the upper cut-off 
@@ -66,19 +66,19 @@ fit_logistic_calibration_curve <- function(
     .data = data,
     quantity == min(dplyr::pull(.data = data, quantity))
   ) |>
-    dplyr::pull(.data = _, a560)
+    dplyr::pull(.data = _, a562)
   d0 <- dplyr::filter(
     .data = data,
     quantity == max(dplyr::pull(.data = data, quantity))
   ) |>
-    dplyr::pull(.data = _, a560)
+    dplyr::pull(.data = _, a562)
   b0 <- 1
   c0 <- (d0 - a0) / 2
   
   ## Model
   model <- try(
     minpack.lm::nlsLM(
-      formula = a560 ~ ((a - d)/(1 + (quantity/c)^b) + d),
+      formula = a562 ~ ((a - d)/(1 + (quantity/c)^b) + d),
       data = data,
       start = list(a = a0, b = b0, c = c0, d = d0),
       lower = c(0, -Inf, 0, 0),
@@ -143,7 +143,7 @@ fit_logistic_calibration_curve <- function(
 
 #' Quantify Unknowns with Calibration Curve
 #'
-#' @param data a tibble with columns `quantity` and `a560`
+#' @param data a tibble with columns `quantity` and `a562`
 #' @param calibration_curve a calibration curve as created by 
 #' `fit_logistic_calibration_curve`
 #'
@@ -165,7 +165,7 @@ quantify_unknowns <- function(data, calibration_curve){
   data <- janitor::clean_names(dat = data)
   unkowns <- !(data[,"task"] == "Standard" | data[,"task"] == "Empty")
   data[unkowns, "quantity"] <- c * 
-    ((a - d)/(data[unkowns, "a560"] - d) - 1)^(1/b)
+    ((a - d)/(data[unkowns, "a562"] - d) - 1)^(1/b)
     
   return(data)
 
